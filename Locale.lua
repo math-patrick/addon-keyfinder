@@ -35,12 +35,7 @@ L.STATUS_FAILED = "The game throttled the search, try again in a moment"
 L.APPS_LABEL = "Applications"
 L.APP_SLOT_HINT = "Click to show this group"
 L.APP_SLOT_EMPTY = "Free application slot"
-L.FOOT_HINT = {
-	"Double-click a group to apply  ·  numbers on dungeons: groups available",
-	"Orange marks your weakest dungeons, where every run is worth more rating",
-	"Alerts are checked on every search, even with this window closed",
-	"Applicants sorted by fit  ·  the book icon opens Parse Academy",
-}
+L.FOOT_HINT = {}
 
 -- Filters menu
 L.F_FOCUS = "Score favors"
@@ -223,7 +218,7 @@ L.A_FRIEND = "friend"
 
 L.F_UPGRADES = "Upgrades"
 L.O_UPGRADE = "Show only upgrades"
-L.O_UPGRADE_TIP = "Type a key level (e.g. 19) in the Group Finder search box. At your base level Keyfinder only shows dungeons where that key is an upgrade for you; a few levels above it shows every dungeon."
+L.O_UPGRADE_TIP = "At your base level: only dungeons where the key is an upgrade. Above it, up to the range: every dungeon."
 L.O_RANGE = "Show all dungeons up to"
 L.O_RANGE_NONE = "only upgrades"
 L.O_RANGE_N = "%d level(s) above"
@@ -279,6 +274,15 @@ L.LD_NO_ENTRY = "You don't have a group listed.\nCreate one in the Group Finder 
 L.LD_EMPTY = "No applicants yet."
 L.LD_STATUS = { invited = "Invited", declined = "Declined", declined_full = "Declined", declined_delisted = "Declined", timedout = "Expired", cancelled = "Cancelled", failed = "Failed", inviteaccepted = "Joined", invitedeclined = "Turned down" }
 
+L.LIST_ILVL = "Item level"
+L.LIST_RATING = "Rating"
+L.LIST_STYLE = "Playstyle"
+L.LIST_AUTO = "Auto-accept"
+L.LIST_PRIVATE = "Private"
+L.LIST_CROSS = "Cross-faction"
+L.LIST_BUTTON = "List group"
+L.LIST_FAILED = "Keyfinder: the game didn't accept the listing. Try listing from the Group Finder."
+
 BINDING_HEADER_KEYFINDER = "Keyfinder"
 BINDING_NAME_KEYFINDER_TOGGLE = "Toggle Keyfinder"
 BINDING_NAME_KEYFINDER_REFRESH = "Search groups (Keyfinder)"
@@ -311,12 +315,7 @@ if GetLocale() == "ptBR" then
 	L.APPS_LABEL = "Candidaturas"
 	L.APP_SLOT_HINT = "Clique para ver o grupo"
 	L.APP_SLOT_EMPTY = "Vaga livre para candidatura"
-	L.FOOT_HINT = {
-		"Duplo clique num grupo pra entrar na fila  ·  número na dungeon: grupos abertos",
-		"Laranja são suas dungeons mais fracas: é ali que cada run rende mais rating",
-		"Os alertas rodam a cada busca, mesmo com a janela fechada",
-		"Candidatos ordenados por encaixe  ·  o livro abre o Parse Academy",
-	}
+	L.FOOT_HINT = {}
 
 	L.F_FOCUS = "A nota prioriza"
 	L.FOCUS_RATING = "Upgrades"
@@ -491,7 +490,7 @@ if GetLocale() == "ptBR" then
 	BINDING_NAME_KEYFINDER_REFRESH = "Buscar grupos (Keyfinder)"
 	L.F_UPGRADES = "Upgrades"
 	L.O_UPGRADE = "Mostrar só upgrades"
-	L.O_UPGRADE_TIP = "Digite o nível (ex.: 19) na busca do Localizador de Grupos. No seu nível base o Keyfinder mostra só as dungeons em que essa key é upgrade pra você; alguns níveis acima, mostra todas."
+	L.O_UPGRADE_TIP = "No nível base: só dungeons em que a key é upgrade. Acima dele, até a faixa: todas."
 	L.O_RANGE = "Mostrar todas até"
 	L.O_RANGE_NONE = "só upgrades"
 	L.O_RANGE_N = "%d nível(is) acima"
@@ -545,4 +544,12 @@ if GetLocale() == "ptBR" then
 	L.LD_NO_ENTRY = "Você não tem grupo anunciado.\nCrie o anúncio no Localizador de Grupos (o título só você pode digitar); os candidatos aparecem aqui."
 	L.LD_EMPTY = "Nenhum candidato ainda."
 	L.LD_STATUS = { invited = "Convidado", declined = "Recusado", declined_full = "Recusado", declined_delisted = "Recusado", timedout = "Expirou", cancelled = "Desistiu", failed = "Falhou", inviteaccepted = "Entrou", invitedeclined = "Recusou o convite" }
+	L.LIST_ILVL = "Item level"
+	L.LIST_RATING = "Rating"
+	L.LIST_STYLE = "Estilo"
+	L.LIST_AUTO = "Auto-aceite"
+	L.LIST_PRIVATE = "Privado"
+	L.LIST_CROSS = "Cross-faction"
+	L.LIST_BUTTON = "Anunciar grupo"
+	L.LIST_FAILED = "Keyfinder: o jogo não aceitou o anúncio. Tente anunciar pelo Localizador de Grupos."
 end

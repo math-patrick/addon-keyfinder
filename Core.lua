@@ -36,6 +36,8 @@ local DEFAULTS = {
 	keyLearn = { bias = 0, n = 0 },
 	-- Upgrades: nível base (0 = automático) e quantos níveis acima mostrar tudo.
 	upgrade = { enabled = true, base = 0, range = 1 },
+	-- Últimas escolhas do formulário de anúncio.
+	listing = { playstyle = 3, autoAccept = false, private = false, crossFaction = true },
 	alerts = { sound = true, flash = true, raidWarning = true, popup = true },
 	pos = nil,
 }
@@ -527,15 +529,20 @@ end
 --   no nível base, só dungeons onde ele é upgrade para você;
 --   até "range" níveis acima, todas; acima disso, só upgrades de novo.
 -- Sem nível exato não dá pra julgar, então tudo passa.
+-- Mostra só keys entre o nível base e base + faixa. No nível base, só as
+-- dungeons onde a key é upgrade pra você; acima dele, todas.
+-- Nível da key: o número da busca do jogador, se houver; senão a estimativa
+-- interna (que nunca aparece na tela).
 function KF:UpgradePasses(r)
 	local u = self.db.upgrade
-	local q = self.queryLevel
-	if not (u.enabled and q) then return true end
-	local mine = r.map and self.player.maps[r.map.id]
-	local timed = mine and mine.timedLevel or 0
-	if timed < q then return true end
+	if not u.enabled then return true end
+	local lvl = self.queryLevel or r.est
 	local base = self:BaseLevel()
-	return base ~= nil and q > base and q <= base + (u.range or 0)
+	if not (lvl and base) then return true end
+	if lvl < base or lvl > base + (u.range or 0) then return false end
+	if lvl > base then return true end
+	local mine = r.map and self.player.maps[r.map.id]
+	return (mine and mine.timedLevel or 0) < lvl
 end
 
 function KF:KeyPasses(r)
@@ -824,6 +831,81 @@ StaticPopupDialogs["KEYFINDER_MATCH"] = {
 	hideOnEscape = true,
 	preferredIndex = 3,
 }
+
+----------------------------------------------------------------------
+-- Anunciar grupo
+-- O título de keys é gerado pelo próprio jogo (SetEntryTitle); o resto
+-- vai na tabela do CreateListing. Precisa vir de um clique.
+----------------------------------------------------------------------
+-- [challengeMapID] = { activityID, groupID } das dungeons M+ da temporada.
+function KF:GetDungeonActivities()
+	local out = {}
+	if not (C_LFGList.GetAvailableActivities and C_LFGList.GetActivityInfoTable) then return out end
+	local filter = 0
+	if Enum.LFGListFilter then filter = bit.bor(Enum.LFGListFilter.PvE or 0, Enum.LFGListFilter.CurrentSeason or 0) end
+	for _, id in ipairs(C_LFGList.GetAvailableActivities(ns.CATEGORY_DUNGEONS, nil, filter) or {}) do
+		local act = C_LFGList.GetActivityInfoTable(id)
+		if act and act.isMythicPlusActivity then
+			local m = self:ResolveMap(act, nil)
+			if m and not out[m.id] then out[m.id] = { activityID = id, groupID = act.groupFinderActivityGroupID } end
+		end
+	end
+	return out
+end
+
+-- Sua key: dungeon (challengeMapID), nível e a atividade do anúncio.
+function KF:GetOwnedKeyListing()
+	local activityID, groupID, level
+	if C_LFGList.GetOwnedKeystoneActivityAndGroupAndLevel then
+		activityID, groupID, level = C_LFGList.GetOwnedKeystoneActivityAndGroupAndLevel()
+	end
+	local mapID
+	if activityID then
+		local act = C_LFGList.GetActivityInfoTable(activityID)
+		local m = act and self:ResolveMap(act, nil)
+		mapID = m and m.id
+	end
+	mapID = mapID or (self.player and self.player.keyMapID)
+	level = level or (self.player and self.player.keyLevel)
+	return mapID, level, activityID, groupID
+end
+
+-- Rating mínimo sugerido para uma key: ~85% do rating de quem tima um
+-- nível abaixo em todas as dungeons, arredondado e nunca acima do seu.
+function KF:SuggestedRating(level)
+	if not level or level < 2 then return 0 end
+	local v = self:ExpectedScore(level - 1) * self:NumMaps() * 0.85
+	v = math.floor(v / 50) * 50
+	return math.max(0, math.min(v, math.floor((self.player.score or 0) / 50) * 50))
+end
+
+function KF:SuggestedItemLevel()
+	local il = self.player and self.player.ilvl or 0
+	if il <= 0 then return 0 end
+	return math.max(0, math.floor((il - 10) / 5) * 5)
+end
+
+function KF:CreateListing(opts)
+	if C_LFGList.HasActiveEntryInfo and C_LFGList.HasActiveEntryInfo() then return false end
+	local none = Enum.LFGEntryPlaystyle and Enum.LFGEntryPlaystyle.None or 0
+	local data = {
+		activityIDs = { opts.activityID },
+		isAutoAccept = opts.autoAccept and true or false,
+		isCrossFactionListing = opts.crossFaction and true or false,
+		isPrivateGroup = opts.private and true or false,
+		newPlayerFriendly = false,
+		playstyle = none,
+		generalPlaystyle = opts.playstyle or 0,
+		requiredDungeonScore = opts.rating or 0,
+		requiredItemLevel = opts.ilvl or 0,
+		requiredPvpRating = 0,
+	}
+	if C_LFGList.SetEntryTitle then
+		pcall(C_LFGList.SetEntryTitle, opts.activityID, opts.groupID, none, data.generalPlaystyle)
+	end
+	local ok, res = pcall(C_LFGList.CreateListing, data)
+	return ok and res ~= false
+end
 
 ----------------------------------------------------------------------
 -- Visão do líder: candidatos ao seu grupo

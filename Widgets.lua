@@ -467,3 +467,58 @@ function W.SetProtectedText(fs, value)
 	local ok = pcall(fs.SetText, fs, value)
 	if not ok then fs:SetText("") end
 end
+
+----------------------------------------------------------------------
+-- Ícone de utilidade (Bloodlust / battle res) com marca de estado:
+-- verde = o grupo tem, dourado = falta e você leva, vermelho = falta.
+----------------------------------------------------------------------
+W.UTILS = {
+	{ key = "hasBL", spell = 2825, fallback = "Interface\Icons\spell_nature_bloodlust", name = "BL" },
+	{ key = "hasBrez", spell = 20484, fallback = "Interface\Icons\spell_nature_reincarnation", name = "BREZ" },
+}
+
+local function SpellIcon(id, fallback)
+	local ok, tex = pcall(function()
+		if C_Spell and C_Spell.GetSpellTexture then return C_Spell.GetSpellTexture(id) end
+		return GetSpellTexture and GetSpellTexture(id)
+	end)
+	return (ok and tex) or fallback
+end
+
+function W.UtilIcon(parent, def, size)
+	local ic = W.Icon(parent, size or 22)
+	ic:SetIcon(SpellIcon(def.spell, def.fallback))
+	ic.def = def
+	ic.mark = ic:CreateTexture(nil, "OVERLAY")
+	ic.mark:SetSize(12, 12)
+	ic.mark:SetPoint("BOTTOMRIGHT", 4, -4)
+	ic:EnableMouse(true)
+	ic:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(L[self.def.name], 1, 1, 1)
+		if self.tip then GameTooltip:AddLine(self.tip, nil, nil, nil, true) end
+		GameTooltip:Show()
+	end)
+	ic:SetScript("OnLeave", GameTooltip_Hide)
+	-- has: o grupo tem; bring: você leva (só conta quando falta)
+	function ic:SetState(has, bring)
+		self.tex:SetDesaturated(not has and not bring)
+		self.tex:SetAlpha((has or bring) and 1 or 0.5)
+		if has then
+			self.border:SetColor(0.25, 1, 0.45, 1)
+			self.mark:SetTexture("Interface\RaidFrame\ReadyCheck-Ready")
+			self.tip = L.UTIL_HAS
+		elseif bring then
+			self.border:SetColor(1, 0.82, 0, 1)
+			self.mark:SetTexture("Interface\RaidFrame\ReadyCheck-Ready")
+			self.mark:SetVertexColor(1, 0.82, 0)
+			self.tip = L.UTIL_YOU_BRING
+		else
+			self.border:SetColor(1, 0.3, 0.3, 1)
+			self.mark:SetTexture("Interface\RaidFrame\ReadyCheck-NotReady")
+			self.tip = L.UTIL_MISSING
+		end
+		if has then self.mark:SetVertexColor(1, 1, 1) elseif not bring then self.mark:SetVertexColor(1, 1, 1) end
+	end
+	return ic
+end

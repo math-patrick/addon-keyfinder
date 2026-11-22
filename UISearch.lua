@@ -26,12 +26,6 @@ function UI.KeyColorCode(conf)
 	return string.format("|cff%02x%02x%02x", r * 255, g * 255, b * 255)
 end
 
--- Ícones de utilidade (Bloodlust / battle res)
-local UTIL_ICONS = {
-	{ key = "hasBL", icon = "Interface\Icons\spell_nature_bloodlust", name = "BL", mine = "hasBL" },
-	{ key = "hasBrez", icon = "Interface\Icons\spell_nature_reincarnation", name = "BREZ", mine = "hasBrez" },
-}
-
 local function Pct(v) return string.format("%d%%", math.floor((v or 0) * 100 + 0.5)) end
 
 -- Preenche `tex` (w x h) com a arte da dungeon, recortando sem distorcer.
@@ -523,9 +517,6 @@ function UI:BuildDetail(p)
 	d.dungeon = W.Text(body, "GameFontNormalLarge", "LEFT", 17, "OUTLINE")
 	d.dungeon:SetPoint("BOTTOMLEFT", d.title, "TOPLEFT", 0, 4)
 	W.Clamp(d.dungeon, textW)
-	local artHover = CreateFrame("Frame", nil, body)
-	artHover:SetAllPoints(d.art)
-	W.Tooltip(artHover, L.EST_TIP_TITLE, L.EST_TIP)
 
 	-- As três estimativas lado a lado
 	d.stats = {}
@@ -568,19 +559,9 @@ function UI:BuildDetail(p)
 		d.members[i] = slot
 	end
 	d.util = {}
-	for i, u in ipairs(UTIL_ICONS) do
-		local ic = W.Icon(body, 22)
+	for i, def in ipairs(W.UTILS) do
+		local ic = W.UtilIcon(body, def, 22)
 		ic:SetPoint("TOP", (i - 1.5) * 30, -276)
-		ic:SetIcon(u.icon)
-		ic.def = u
-		ic:EnableMouse(true)
-		ic:SetScript("OnEnter", function(self)
-			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-			GameTooltip:SetText(L[self.def.name], 1, 1, 1)
-			GameTooltip:AddLine(self.tip or "", nil, nil, nil, true)
-			GameTooltip:Show()
-		end)
-		ic:SetScript("OnLeave", GameTooltip_Hide)
 		d.util[i] = ic
 	end
 
@@ -689,13 +670,8 @@ function UI:RefreshDetail()
 		end
 	end
 	for _, ic in ipairs(d.util) do
-		local has = r[ic.def.key]
-		local iBring = p[ic.def.mine]
-		ic.tex:SetDesaturated(not has)
-		ic.tex:SetAlpha(has and 1 or 0.45)
-		if has then ic.border:SetColor(0.25, 1, 0.45, 1); ic.tip = L.UTIL_HAS
-		elseif iBring then ic.border:SetColor(1, 0.82, 0, 1); ic.tip = L.UTIL_YOU_BRING
-		else ic.border:SetColor(1, 0.3, 0.3, 1); ic.tip = L.UTIL_MISSING end
+		local has = r[ic.def.key] and true or false
+		ic:SetState(has, not has and p[ic.def.key])
 	end
 
 	-- Líder (uma linha) + extras só quando existem

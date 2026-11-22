@@ -26,7 +26,7 @@ Localizador de grupos Mythic+ para quem joga key alta. WoW retail Midnight (12.1
 **Como a nota é calculada (usa as suas runs)**
 - Lê o seu resumo de M+ da temporada (best por dungeon, timado ou não, pontos) e calibra a curva de pontos com as suas runs timadas.
 - **Nível da key**: aparece no título do grupo. O Keyfinder nunca mostra palpite de nível; uma estimativa interna só ajuda a ordenar a nota.
-- **Upgrades**: digite o nível (ex.: 19) na busca do Localizador da Blizzard. No seu nível base, o Keyfinder mostra só as dungeons em que essa key é upgrade; até N níveis acima, mostra todas. Nível base (automático = seu menor best timado +1) e a faixa ficam em *Opções › AddOns › Keyfinder* ou no menu Filtros.
+- **Upgrades**: mostra só keys entre o seu nível base e a faixa acima dele. No nível base, só as dungeons em que a key é upgrade pra você; acima, todas. Nível base (automático = seu menor best timado +1) e faixa ficam em *Opções › AddOns › Keyfinder* ou no menu Filtros. O nível usado no filtro é estimado internamente e nunca aparece na tela.
 - **Aceite**: seu best timado aqui x key, seu rating x o do líder, Bloodlust/battle res que você leva, amigos, auto-aceite, exigências.
 - **Timar**: experiência do líder nesta dungeon, a sua, e se o rating dele combina com a key.
 
@@ -34,6 +34,7 @@ Localizador de grupos Mythic+ para quem joga key alta. WoW retail Midnight (12.1
 - Um card por dungeon, da mais fraca para a mais forte: best, pontos, próximo passo e quanto rating ele dá. **Procurar grupos** já filtra e busca.
 
 **Meu grupo** (quem monta o grupo)
+- **Anunciar grupo**: sem anúncio ativo, a aba mostra um formulário já preenchido com a dungeon da sua key, item level e rating mínimos sugeridos, estilo, auto-aceite, privado e cross-faction. Tudo editável; o título é gerado pelo jogo.
 - Banner da dungeon anunciada, sua key e a composição atual com os ícones de Bloodlust e battle res.
 - **Recomendações**: o que falta (roles, Bloodlust, battle res e quais classes trazem), que best procurar pra sua key e aviso quando não há rating mínimo.
 - **Candidatos**: quantos estão esperando por role, rating médio e quantos já timaram a sua key.

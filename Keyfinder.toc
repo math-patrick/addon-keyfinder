@@ -2,7 +2,7 @@
 ## Title: Keyfinder
 ## Notes: Localizador de grupos Mythic+ com nota de match baseada nas suas runs (chance de aceite, ganho de rating, chance de timar), progresso por dungeon e watchlist com alertas.
 ## Author: sabiá
-## Version: 0.6.0
+## Version: 0.7.0
 ## SavedVariables: KeyfinderDB
 ## OptionalDeps: ParseAcademy
 ## IconTexture: Interface\Icons\inv_relics_hourglass

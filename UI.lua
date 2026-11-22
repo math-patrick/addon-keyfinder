@@ -443,15 +443,12 @@ end
 
 -- Uma linha que diz o que a lista está mostrando e o que fazer.
 function UI:StatusLine()
-	local n = #(KF.filtered or {})
-	local ago = Ago(KF.lastSearch)
-	local u, q, base = KF.db.upgrade, KF.queryLevel, KF:BaseLevel()
-	if u.enabled and q then
-		local all = base and q > base and q <= base + (u.range or 0)
-		return "|cffffd100+" .. q .. "|r  " .. (all and L.STATUS_UP_ALL or L.STATUS_UP_ONLY):format(n) .. "  ·  " .. ago
+	local text = L.STATUS:format(#(KF.filtered or {}), Ago(KF.lastSearch))
+	local u, base = KF.db.upgrade, KF:BaseLevel()
+	if u.enabled and base then
+		local hi = base + (u.range or 0)
+		text = "|cffffd100+" .. base .. (hi > base and ("-" .. hi) or "") .. "|r  ·  " .. text
 	end
-	local text = L.STATUS:format(n, ago)
-	if u.enabled and base then text = "|cff8cc8ff" .. L.STATUS_UP_HINT:format(base) .. "|r  ·  " .. text end
 	return text
 end
 

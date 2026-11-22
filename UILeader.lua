@@ -187,13 +187,9 @@ function UI:BuildLeader(page)
 		ld.slots[i] = s
 	end
 	ld.util = {}
-	for i, def in ipairs({ { key = "hasBL", icon = "Interface\\Icons\\spell_nature_bloodlust", name = L.BL },
-		{ key = "hasBrez", icon = "Interface\\Icons\\spell_nature_reincarnation", name = L.BREZ } }) do
-		local ic = W.Icon(left, 22)
+	for i, def in ipairs(W.UTILS) do
+		local ic = W.UtilIcon(left, def, 22)
 		ic:SetPoint("TOPRIGHT", -12 - (2 - i) * 28, y - 21)
-		ic:SetIcon(def.icon)
-		ic.def = def
-		W.Tooltip(ic, def.name, function() return ic.tip end)
 		ld.util[i] = ic
 	end
 
@@ -265,6 +261,118 @@ function UI:BuildLeader(page)
 	empty.text:SetWidth(380)
 	empty.text:SetWordWrap(true)
 	ld.empty = empty
+	self:BuildListingForm(right)
+end
+
+----------------------------------------------------------------------
+-- Formulário "Anunciar grupo": tudo pré-preenchido a partir da sua key
+-- e do seu personagem, e tudo editável.
+----------------------------------------------------------------------
+local function NumberBox(parent, width)
+	local eb = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
+	eb:SetSize(width, 22)
+	eb:SetAutoFocus(false)
+	eb:SetNumeric(true)
+	eb:SetMaxLetters(5)
+	eb:SetJustifyH("CENTER")
+	eb:SetScript("OnEnterPressed", eb.ClearFocus)
+	eb:SetScript("OnEscapePressed", eb.ClearFocus)
+	-- Depois que o jogador mexe, a sugestão não sobrescreve mais.
+	eb:SetScript("OnTextChanged", function(self, userInput) if userInput then self.edited = true end end)
+	return eb
+end
+
+local function Label(parent, text, anchor)
+	local fs = W.Text(parent, "GameFontNormalSmall", "CENTER", 10)
+	fs:SetPoint("BOTTOM", anchor, "TOP", 0, 4)
+	fs:SetText(text)
+	return fs
+end
+
+function UI:BuildListingForm(parent)
+	local f = CreateFrame("Frame", nil, parent)
+	f:SetSize(400, 300)
+	f:SetPoint("CENTER", 0, 10)
+	f:Hide()
+	self.leaderUI.form = f
+	local o = KF.db.listing
+
+	f.art = f:CreateTexture(nil, "ARTWORK")
+	f.art:SetPoint("TOP")
+	f.art:SetSize(400, 96)
+	local shade = f:CreateTexture(nil, "ARTWORK", nil, 1)
+	shade:SetAllPoints(f.art)
+	W.Gradient(shade, "VERTICAL", 0, 0, 0, 0.9, 0, 0, 0, 0.1)
+	W.Border(f, 1, 0.82, 0, 0.25)
+
+	f.dungeon = W.Dropdown(f, 250, function()
+		local opts = {}
+		for _, m in ipairs(KF.maps or {}) do
+			if f.activities and f.activities[m.id] then opts[#opts + 1] = { text = m.name, value = m.id } end
+		end
+		return opts
+	end, function() return f.mapID end, function(v) f.mapID = v; f.userMap = true; UI:RefreshListingForm() end)
+	f.dungeon:SetPoint("BOTTOM", f.art, "BOTTOM", -24, 12)
+	f.key = W.Text(f, "GameFontHighlight", "LEFT", 18, "OUTLINE")
+	f.key:SetPoint("LEFT", f.dungeon, "RIGHT", 10, 0)
+
+	local y = -136
+	f.ilvl = NumberBox(f, 64); f.ilvl:SetPoint("TOP", -130, y)
+	Label(f, L.LIST_ILVL, f.ilvl)
+	f.rating = NumberBox(f, 72); f.rating:SetPoint("TOP", -30, y)
+	Label(f, L.LIST_RATING, f.rating)
+	local ps = {}
+	for i = 1, 4 do ps[#ps + 1] = { text = L.PS[i], value = i } end
+	f.style = W.Dropdown(f, 130, ps, function() return o.playstyle end, function(v) o.playstyle = v end)
+	f.style:SetPoint("TOP", 100, y + 2)
+	Label(f, L.LIST_STYLE, f.style)
+
+	y = y - 44
+	local checks = { { "autoAccept", L.LIST_AUTO }, { "private", L.LIST_PRIVATE }, { "crossFaction", L.LIST_CROSS } }
+	f.checks = {}
+	for i, def in ipairs(checks) do
+		local key = def[1]
+		local cb = W.Check(f, def[2], function() return o[key] end, function(v) o[key] = v end)
+		cb:SetPoint("TOPLEFT", 24 + (i - 1) * 126, y)
+		f.checks[i] = cb
+	end
+
+	f.list = W.Button(f, L.LIST_BUTTON, 200, function()
+		local act = f.activities and f.activities[f.mapID]
+		if not act then return end
+		local ok = KF:CreateListing({
+			activityID = act.activityID, groupID = act.groupID,
+			ilvl = tonumber(f.ilvl:GetText()) or 0, rating = tonumber(f.rating:GetText()) or 0,
+			playstyle = o.playstyle, autoAccept = o.autoAccept, private = o.private, crossFaction = o.crossFaction,
+		})
+		if not ok then ns.Print(L.LIST_FAILED) end
+	end)
+	f.list:SetHeight(30)
+	f.list:SetPoint("BOTTOM", 0, 14)
+end
+
+function UI:RefreshListingForm()
+	local f = self.leaderUI and self.leaderUI.form
+	if not f then return end
+	f.activities = KF:GetDungeonActivities()
+	local keyMap, keyLevel = KF:GetOwnedKeyListing()
+	if not f.userMap or not f.activities[f.mapID or 0] then
+		f.mapID = (keyMap and f.activities[keyMap]) and keyMap or nil
+		if not f.mapID then
+			for _, m in ipairs(KF.maps or {}) do if f.activities[m.id] then f.mapID = m.id break end end
+		end
+	end
+	local map = f.mapID and KF.mapByID and KF.mapByID[f.mapID]
+	UI:SetBannerArt(f.art, map, 400, 96)
+	f.dungeon:Sync()
+
+	local isKey = keyMap and f.mapID == keyMap and keyLevel
+	f.key:SetText(isKey and ("|cffffd100+" .. keyLevel .. "|r") or "")
+	if not f.ilvl.edited then f.ilvl:SetText(tostring(KF:SuggestedItemLevel())) end
+	if not f.rating.edited then f.rating:SetText(tostring(isKey and KF:SuggestedRating(keyLevel) or 0)) end
+	f.style:Sync()
+	for _, cb in ipairs(f.checks) do cb:Sync() end
+	f.list:SetEnabled(f.mapID ~= nil and f.activities[f.mapID] ~= nil and not (C_LFGList.HasActiveEntryInfo and C_LFGList.HasActiveEntryInfo()))
 end
 
 -- Monta as recomendações a partir da composição e dos candidatos.
@@ -333,11 +441,7 @@ function UI:RefreshLeader()
 		end
 	end
 	for _, ic in ipairs(ld.util) do
-		local has = comp[ic.def.key]
-		ic.tex:SetDesaturated(not has)
-		ic.tex:SetAlpha(has and 1 or 0.45)
-		if has then ic.border:SetColor(0.25, 1, 0.45, 1); ic.tip = L.UTIL_HAS
-		else ic.border:SetColor(1, 0.3, 0.3, 1); ic.tip = L.UTIL_MISSING end
+		ic:SetState(comp[ic.def.key] and true or false, false)
 	end
 
 	-- Recomendado: o candidato de maior encaixe para cada vaga aberta.
@@ -371,8 +475,10 @@ function UI:RefreshLeader()
 	ld.insight3:SetText(data.refLevel and L.LD_IN_TIMED:format(timedKey, data.refLevel) or "")
 
 	W.SetData(ld.list, data.applicants)
+	ld.form:SetShown(not data.entry)
 	if not data.entry then
-		ld.empty.text:SetText(L.LD_NO_ENTRY); ld.empty:Show()
+		ld.empty:Hide()
+		self:RefreshListingForm()
 	elseif #data.applicants == 0 then
 		ld.empty.text:SetText(L.LD_EMPTY); ld.empty:Show()
 	else
