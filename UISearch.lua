@@ -214,7 +214,7 @@ function UI:BuildSearch(page)
 	tb:SetPoint("BOTTOMRIGHT", detail, "BOTTOMLEFT", -5, 0)
 	tb:SetHeight(TOOLBAR_H)
 
-	local sb = W.Button(tb, "|TInterface\Common\UI-Searchbox-Icon:14:14:0:0|t " .. L.SEARCH, 116, function() KF:Search() end)
+	local sb = W.Button(tb, "|TInterface\\Common\\UI-Searchbox-Icon:14:14:0:0|t " .. L.SEARCH, 116, function() KF:Search() end)
 	sb:SetHeight(26)
 	sb:SetPoint("RIGHT", 0, 0)
 	sb.glow = sb:CreateTexture(nil, "BACKGROUND")

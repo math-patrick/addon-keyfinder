@@ -350,15 +350,18 @@ function W.Dropdown(parent, width, options, get, set)
 end
 
 -- ScrollBox + MinimalScrollBar com view linear (o mesmo par usado pelo Localizador).
-function W.List(parent, template, initializer)
+-- extent (opcional): function(dataIndex, data) -> altura da linha, para listas
+-- com linhas de altura variável.
+function W.List(parent, template, initializer, extent)
 	local box = CreateFrame("Frame", nil, parent, "WowScrollBoxList")
 	local bar = CreateFrame("EventFrame", nil, parent, "MinimalScrollBar")
 	bar:SetPoint("TOPLEFT", box, "TOPRIGHT", 6, 0)
 	bar:SetPoint("BOTTOMLEFT", box, "BOTTOMRIGHT", 6, 0)
 	local view = CreateScrollBoxListLinearView()
 	view:SetElementInitializer(template, initializer)
+	if extent and view.SetElementExtentCalculator then view:SetElementExtentCalculator(extent) end
 	ScrollUtil.InitScrollBoxListWithScrollBar(box, bar, view)
-	return box, bar
+	return box, bar, view
 end
 
 function W.SetData(box, list)
@@ -473,8 +476,8 @@ end
 -- verde = o grupo tem, dourado = falta e você leva, vermelho = falta.
 ----------------------------------------------------------------------
 W.UTILS = {
-	{ key = "hasBL", spell = 2825, fallback = "Interface\Icons\spell_nature_bloodlust", name = "BL" },
-	{ key = "hasBrez", spell = 20484, fallback = "Interface\Icons\spell_nature_reincarnation", name = "BREZ" },
+	{ key = "hasBL", spell = 2825, fallback = "Interface\\Icons\\spell_nature_bloodlust", name = "BL" },
+	{ key = "hasBrez", spell = 20484, fallback = "Interface\\Icons\\spell_nature_reincarnation", name = "BREZ" },
 }
 
 local function SpellIcon(id, fallback)
@@ -506,19 +509,20 @@ function W.UtilIcon(parent, def, size)
 		self.tex:SetAlpha((has or bring) and 1 or 0.5)
 		if has then
 			self.border:SetColor(0.25, 1, 0.45, 1)
-			self.mark:SetTexture("Interface\RaidFrame\ReadyCheck-Ready")
+			self.mark:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
+			self.mark:SetVertexColor(1, 1, 1)
 			self.tip = L.UTIL_HAS
 		elseif bring then
 			self.border:SetColor(1, 0.82, 0, 1)
-			self.mark:SetTexture("Interface\RaidFrame\ReadyCheck-Ready")
+			self.mark:SetTexture("Interface\\RaidFrame\\ReadyCheck-Ready")
 			self.mark:SetVertexColor(1, 0.82, 0)
 			self.tip = L.UTIL_YOU_BRING
 		else
 			self.border:SetColor(1, 0.3, 0.3, 1)
-			self.mark:SetTexture("Interface\RaidFrame\ReadyCheck-NotReady")
+			self.mark:SetTexture("Interface\\RaidFrame\\ReadyCheck-NotReady")
+			self.mark:SetVertexColor(1, 1, 1)
 			self.tip = L.UTIL_MISSING
 		end
-		if has then self.mark:SetVertexColor(1, 1, 1) elseif not bring then self.mark:SetVertexColor(1, 1, 1) end
 	end
 	return ic
 end

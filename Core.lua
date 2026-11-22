@@ -37,7 +37,9 @@ local DEFAULTS = {
 	-- Upgrades: nível base (0 = automático) e quantos níveis acima mostrar tudo.
 	upgrade = { enabled = true, base = 0, range = 1 },
 	-- Últimas escolhas do formulário de anúncio.
-	listing = { playstyle = 3, autoAccept = false, private = false, crossFaction = true },
+	-- Preenchimento da janela de anúncio da Blizzard.
+	autofill = true,
+	listing = { private = false, crossFaction = true },
 	alerts = { sound = true, flash = true, raidWarning = true, popup = true },
 	pos = nil,
 }
@@ -525,20 +527,18 @@ function KF:BaseLevel()
 	return self.player and self.player.needLevel
 end
 
--- Com o nível exato (número digitado na busca do jogo):
---   no nível base, só dungeons onde ele é upgrade para você;
---   até "range" níveis acima, todas; acima disso, só upgrades de novo.
--- Sem nível exato não dá pra julgar, então tudo passa.
 -- Mostra só keys entre o nível base e base + faixa. No nível base, só as
 -- dungeons onde a key é upgrade pra você; acima dele, todas.
 -- Nível da key: o número da busca do jogador, se houver; senão a estimativa
--- interna (que nunca aparece na tela).
+-- interna (que nunca aparece na tela). Grupo sem nenhum sinal de nível
+-- (líder sem rating, sem run e sem rating exigido) fica de fora.
 function KF:UpgradePasses(r)
 	local u = self.db.upgrade
 	if not u.enabled then return true end
-	local lvl = self.queryLevel or r.est
 	local base = self:BaseLevel()
-	if not (lvl and base) then return true end
+	if not base then return true end
+	local lvl = self.queryLevel or r.est
+	if not lvl then return false end
 	if lvl < base or lvl > base + (u.range or 0) then return false end
 	if lvl > base then return true end
 	local mine = r.map and self.player.maps[r.map.id]
@@ -646,6 +646,7 @@ function KF:Rebuild()
 	end
 	if errN > 0 then self:LearnKey(errSum / errN, math.min(5, errN)) end
 	self.learnPending = nil
+	if #all > 0 and not self.lastSearch then self.lastSearch = GetTime() end
 	self.results = all
 	self:ApplyFilters()
 	self:CheckRules()
@@ -833,26 +834,9 @@ StaticPopupDialogs["KEYFINDER_MATCH"] = {
 }
 
 ----------------------------------------------------------------------
--- Anunciar grupo
--- O título de keys é gerado pelo próprio jogo (SetEntryTitle); o resto
--- vai na tabela do CreateListing. Precisa vir de um clique.
+-- Sugestões para o anúncio (usadas no preenchimento automático da
+-- janela de anúncio da Blizzard).
 ----------------------------------------------------------------------
--- [challengeMapID] = { activityID, groupID } das dungeons M+ da temporada.
-function KF:GetDungeonActivities()
-	local out = {}
-	if not (C_LFGList.GetAvailableActivities and C_LFGList.GetActivityInfoTable) then return out end
-	local filter = 0
-	if Enum.LFGListFilter then filter = bit.bor(Enum.LFGListFilter.PvE or 0, Enum.LFGListFilter.CurrentSeason or 0) end
-	for _, id in ipairs(C_LFGList.GetAvailableActivities(ns.CATEGORY_DUNGEONS, nil, filter) or {}) do
-		local act = C_LFGList.GetActivityInfoTable(id)
-		if act and act.isMythicPlusActivity then
-			local m = self:ResolveMap(act, nil)
-			if m and not out[m.id] then out[m.id] = { activityID = id, groupID = act.groupFinderActivityGroupID } end
-		end
-	end
-	return out
-end
-
 -- Sua key: dungeon (challengeMapID), nível e a atividade do anúncio.
 function KF:GetOwnedKeyListing()
 	local activityID, groupID, level
@@ -883,28 +867,6 @@ function KF:SuggestedItemLevel()
 	local il = self.player and self.player.ilvl or 0
 	if il <= 0 then return 0 end
 	return math.max(0, math.floor((il - 10) / 5) * 5)
-end
-
-function KF:CreateListing(opts)
-	if C_LFGList.HasActiveEntryInfo and C_LFGList.HasActiveEntryInfo() then return false end
-	local none = Enum.LFGEntryPlaystyle and Enum.LFGEntryPlaystyle.None or 0
-	local data = {
-		activityIDs = { opts.activityID },
-		isAutoAccept = opts.autoAccept and true or false,
-		isCrossFactionListing = opts.crossFaction and true or false,
-		isPrivateGroup = opts.private and true or false,
-		newPlayerFriendly = false,
-		playstyle = none,
-		generalPlaystyle = opts.playstyle or 0,
-		requiredDungeonScore = opts.rating or 0,
-		requiredItemLevel = opts.ilvl or 0,
-		requiredPvpRating = 0,
-	}
-	if C_LFGList.SetEntryTitle then
-		pcall(C_LFGList.SetEntryTitle, opts.activityID, opts.groupID, none, data.generalPlaystyle)
-	end
-	local ok, res = pcall(C_LFGList.CreateListing, data)
-	return ok and res ~= false
 end
 
 ----------------------------------------------------------------------
@@ -968,7 +930,7 @@ function KF:GetLeaderData()
 					best = best and (safe(best.bestRunLevel) or 0) or 0, timed = best and safe(best.finishedSuccess) or false,
 				}
 			end
-			a.fit, a.tags = self:ScoreApplicant(a.members[1], data)
+			a.fit, a.tags = self:ScoreApplication(a, data)
 			data.applicants[#data.applicants + 1] = a
 		end
 	end
@@ -980,13 +942,47 @@ function KF:GetLeaderData()
 	return data
 end
 
+-- Candidatura inteira: um jogador ou um grupo. Para grupos, a nota é a
+-- média dos membros, com bônus se todos cabem nas vagas abertas e uma
+-- penalidade forte se não cabem; utilidade conta se qualquer um traz.
+function KF:ScoreApplication(a, data)
+	if #a.members <= 1 then
+		local m = a.members[1]
+		local fit, tags = self:ScoreApplicant(m, data)
+		if m then m.fit, m.tags = fit, tags end
+		return fit, tags
+	end
+	local comp = data.comp
+	local open = { TANK = comp.open.TANK or 0, HEALER = comp.open.HEALER or 0, DAMAGER = comp.open.DAMAGER or 0 }
+	local sum, fits, bl, brez = 0, true, false, false
+	for _, m in ipairs(a.members) do
+		m.fit, m.tags = self:ScoreApplicant(m, data)
+		sum = sum + m.fit
+		if (open[m.role] or 0) > 0 then open[m.role] = open[m.role] - 1 else fits = false end
+		if m.class and ns.BL_CLASSES[m.class] then bl = true end
+		if m.class and ns.BREZ_CLASSES[m.class] then brez = true end
+	end
+	local s = sum / #a.members
+	local tags = {}
+	if fits then
+		s = s + 6
+		tags[#tags + 1] = { good = true, text = L.A_GROUP_FITS }
+	else
+		s = s - 35
+		tags[#tags + 1] = { good = false, text = L.A_GROUP_NOFIT }
+	end
+	if bl and not comp.hasBL then tags[#tags + 1] = { good = true, text = L.A_BL } end
+	if brez and not comp.hasBrez then tags[#tags + 1] = { good = true, text = L.A_BREZ } end
+	return clamp(math.floor(s + 0.5), 1, 99), tags
+end
+
 function KF:ScoreApplicant(m, data)
 	local tags = {}
 	local function tag(good, text) tags[#tags + 1] = { good = good, text = text } end
 	if not m then return 0, tags end
 	local p, comp = self.player, data.comp
 	local s = 50
-	if (comp.open[m.role] or 0) > 0 then s = s + 15; tag(true, L.A_ROLE_OPEN) else s = s - 40; tag(false, L.A_ROLE_FULL) end
+	if (comp.open[m.role] or 0) > 0 then s = s + 15 else s = s - 40; tag(false, L.A_ROLE_FULL) end
 	local ref = data.refLevel
 	if m.best > 0 then
 		if m.timed then

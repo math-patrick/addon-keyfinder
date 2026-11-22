@@ -33,7 +33,39 @@ end
 
 ----------------------------------------------------------------------
 -- Linha de candidato (template KeyfinderApplicantRowTemplate)
+-- A linha principal mostra o primeiro jogador (ou quem lidera a
+-- candidatura em grupo). Em candidaturas em grupo, cada membro extra
+-- ganha uma sublinha com classe, role, rating, best e ilvl.
 ----------------------------------------------------------------------
+local MAIN_H, SUB_H = 44, 26
+ns.APPLICANT_EXTENT = function(_, a)
+	local n = a and #a.members or 1
+	return MAIN_H + math.max(0, n - 1) * SUB_H + (n > 1 and 4 or 0)
+end
+
+-- Ilvl do candidato, colorido em relação ao seu: verde = igual ou maior,
+-- dourado = até 5 abaixo, vermelho = mais baixo que isso.
+local ILVL_OK, ILVL_CLOSE, ILVL_LOW = CreateColor(0.25, 1, 0.45), CreateColor(1, 0.82, 0), CreateColor(1, 0.35, 0.35)
+local function IlvlText(ilvl)
+	ilvl = math.floor(ilvl or 0)
+	if ilvl <= 0 then return "-" end
+	local mine = KF.player and KF.player.ilvl or 0
+	if mine <= 0 then return tostring(ilvl) end
+	local diff = ilvl - math.floor(mine)
+	local c = diff >= 0 and ILVL_OK or (diff >= -5 and ILVL_CLOSE or ILVL_LOW)
+	return c:WrapTextInColorCode(tostring(ilvl))
+end
+
+local function Columns(parent, size)
+	local function col(width, right)
+		local fs = W.Text(parent, "GameFontHighlight", "CENTER", size, "OUTLINE")
+		fs:SetPoint("RIGHT", parent, "RIGHT", right, 0)
+		fs:SetWidth(width)
+		return fs
+	end
+	return col(RATING_W, RATING_R), col(BEST_W, BEST_R), col(ILVL_W, ILVL_R)
+end
+
 KeyfinderApplicantRowMixin = {}
 
 function KeyfinderApplicantRowMixin:OnLoad()
@@ -51,41 +83,65 @@ function KeyfinderApplicantRowMixin:OnLoad()
 	self.Sep:SetHeight(1)
 	self.Sep:SetColorTexture(1, 1, 1, 0.06)
 
-	self.Badge = W.Badge(self, 34)
+	local main = CreateFrame("Frame", nil, self)
+	main:SetPoint("TOPLEFT")
+	main:SetPoint("TOPRIGHT")
+	main:SetHeight(MAIN_H)
+	self.Main = main
+
+	self.Badge = W.Badge(main, 34)
 	self.Badge:SetPoint("LEFT", 6, 0)
-	self.Icon = W.Icon(self, 30)
+	self.Icon = W.Icon(main, 30)
 	self.Icon:SetPoint("LEFT", 46, 0)
 	self.Role = self.Icon:CreateTexture(nil, "OVERLAY")
 	self.Role:SetSize(14, 14)
 	self.Role:SetPoint("BOTTOMRIGHT", 4, -4)
 
-	self.Name = W.Text(self, "GameFontHighlight", "LEFT", 13)
+	self.Name = W.Text(main, "GameFontHighlight", "LEFT", 13)
 	self.Name:SetPoint("TOPLEFT", TEXT_L, -7)
-	self.Name:SetPoint("RIGHT", self, "RIGHT", TEXT_R, 0)
-	self.Sub = W.Text(self, "GameFontHighlightSmall")
+	self.Name:SetPoint("RIGHT", main, "RIGHT", TEXT_R, 0)
+	self.Sub = W.Text(main, "GameFontHighlightSmall")
 	self.Sub:SetPoint("BOTTOMLEFT", TEXT_L, 8)
-	self.Sub:SetPoint("RIGHT", self, "RIGHT", TEXT_R, 0)
+	self.Sub:SetPoint("RIGHT", main, "RIGHT", TEXT_R, 0)
 
-	local function col(width, right, size)
-		local fs = W.Text(self, "GameFontHighlight", "CENTER", size or 13, "OUTLINE")
-		fs:SetPoint("RIGHT", self, "RIGHT", right, 0)
-		fs:SetWidth(width)
-		return fs
-	end
-	self.Rating = col(RATING_W, RATING_R)
-	self.Best = col(BEST_W, BEST_R)
-	self.Ilvl = col(ILVL_W, ILVL_R, 12)
+	self.Rating, self.Best, self.Ilvl = Columns(main, 13)
 
-	self.PA = UI:CreateParseAcademyButton(self, function() local m = self.data and self.data.members[1]; return m and m.name end)
-	self.PA:SetPoint("RIGHT", self, "RIGHT", PA_R, 0)
+	self.PA = UI:CreateParseAcademyButton(main, function() local m = self.data and self.data.members[1]; return m and m.name end)
+	self.PA:SetPoint("RIGHT", main, "RIGHT", PA_R, 0)
 
-	self.Decline = W.Button(self, L.LD_DECLINE, DECLINE_W, function() if self.data then KF:Decline(self.data.id) end end)
+	self.Decline = W.Button(main, L.LD_DECLINE, DECLINE_W, function() if self.data then KF:Decline(self.data.id) end end)
 	self.Decline:SetPoint("RIGHT", DECLINE_R, 0)
-	self.Invite = W.Button(self, L.LD_INVITE, INVITE_W, function() if self.data then KF:Invite(self.data.id) end end)
+	self.Invite = W.Button(main, L.LD_INVITE, INVITE_W, function() if self.data then KF:Invite(self.data.id) end end)
 	self.Invite:SetPoint("RIGHT", INVITE_R, 0)
-	self.Status = W.Text(self, "GameFontHighlightSmall", "CENTER")
+	self.Status = W.Text(main, "GameFontHighlightSmall", "CENTER")
 	self.Status:SetPoint("RIGHT", DECLINE_R, 0)
 	self.Status:SetWidth(DECLINE_W + INVITE_W + 4)
+
+	-- Sublinhas para os demais membros de uma candidatura em grupo.
+	self.Members = {}
+	for i = 2, 5 do
+		local line = CreateFrame("Frame", nil, self)
+		line:SetPoint("TOPLEFT", main, "BOTTOMLEFT", 0, -(i - 2) * SUB_H)
+		line:SetPoint("TOPRIGHT", main, "BOTTOMRIGHT", 0, -(i - 2) * SUB_H)
+		line:SetHeight(SUB_H)
+		line.guide = line:CreateTexture(nil, "ARTWORK")
+		line.guide:SetColorTexture(1, 1, 1, 0.12)
+		line.guide:SetSize(1, SUB_H)
+		line.guide:SetPoint("LEFT", 61, 0)
+		line.icon = W.Icon(line, 20)
+		line.icon:SetPoint("LEFT", 52, 0)
+		line.role = line.icon:CreateTexture(nil, "OVERLAY")
+		line.role:SetSize(11, 11)
+		line.role:SetPoint("BOTTOMRIGHT", 3, -3)
+		line.name = W.Text(line, "GameFontHighlightSmall", "LEFT", 12)
+		line.name:SetPoint("LEFT", TEXT_L, 0)
+		line.name:SetPoint("RIGHT", line, "RIGHT", TEXT_R, 0)
+		line.rating, line.best, line.ilvl = Columns(line, 12)
+		line.pa = UI:CreateParseAcademyButton(line, function() return line.member and line.member.name end)
+		line.pa:SetSize(16, 16)
+		line.pa:SetPoint("RIGHT", line, "RIGHT", PA_R - 2, 0)
+		self.Members[i] = line
+	end
 end
 
 function KeyfinderApplicantRowMixin:Init(a)
@@ -99,7 +155,6 @@ function KeyfinderApplicantRowMixin:Init(a)
 	W.SetRoleIcon(self.Role, m.role)
 
 	local name = W.ClassColored(m.name and Ambiguate(m.name, "short") or "?", m.class)
-	if a.numMembers > 1 then name = name .. "  |cff808080" .. L.LD_PLUS:format(a.numMembers - 1) .. "|r" end
 	if a.recommended then name = name .. "  |cffffd100" .. L.LD_RECOMMENDED .. "|r" end
 	self.Name:SetText(name)
 
@@ -109,12 +164,23 @@ function KeyfinderApplicantRowMixin:Init(a)
 
 	self.Rating:SetText(W.ScoreText(m.score or 0))
 	self.Best:SetText(W.BestText(m.best, m.timed))
-	local p = KF.player
-	if (p.ilvl or 0) > 0 and (m.ilvl or 0) > 0 then
-		local diff = math.floor(m.ilvl - p.ilvl + 0.5)
-		self.Ilvl:SetText((diff >= 0 and W.GOOD or W.GRAY):WrapTextInColorCode((diff >= 0 and "+" or "") .. diff))
-	else
-		self.Ilvl:SetText(math.floor(m.ilvl or 0))
+	self.Ilvl:SetText(IlvlText(m.ilvl))
+
+	for i = 2, 5 do
+		local line, mm = self.Members[i], a.members[i]
+		line.member = mm
+		line:SetShown(mm ~= nil)
+		if mm then
+			W.SetClassIcon(line.icon.tex, mm.class)
+			line.icon.border:SetColor(W.ClassColor(mm.class))
+			W.SetRoleIcon(line.role, mm.role)
+			local n = W.ClassColored(mm.name and Ambiguate(mm.name, "short") or "?", mm.class)
+			line.name:SetText(n .. "  |cff9d9d9d" .. (mm.spec or mm.className or "") .. "|r")
+			line.rating:SetText(W.ScoreText(mm.score or 0))
+			line.best:SetText(W.BestText(mm.best, mm.timed))
+			line.ilvl:SetText(IlvlText(mm.ilvl))
+			line.pa:SetShown(mm.name ~= nil)
+		end
 	end
 
 	local pending = a.status == "applied"
@@ -242,10 +308,22 @@ function UI:BuildLeader(page)
 	hl:SetColorTexture(1, 0.82, 0, 0.2)
 	W.Tooltip(header, L.LD_COL_FIT, L.LD_FIT_HINT)
 
-	local box = W.List(right, "KeyfinderApplicantRowTemplate", function(row, a) row:Init(a) end)
+	local box = W.List(right, "KeyfinderApplicantRowTemplate", function(row, a) row:Init(a) end, ns.APPLICANT_EXTENT)
 	box:SetPoint("TOPLEFT", header, "BOTTOMLEFT", 0, -5)
 	box:SetPoint("BOTTOMRIGHT", -26, 5)
 	ld.list = box
+
+	-- Limpar: tira da lista quem cancelou, foi recusado ou expirou (só aqui no
+	-- Keyfinder; candidaturas ativas nunca somem).
+	ld.hidden = {}
+	ld.clear = W.Button(right, L.LD_CLEAR, 76, function()
+		for _, a in ipairs(ld.finished or {}) do ld.hidden[a.id] = true end
+		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_OFF)
+		UI:RefreshLeader()
+	end)
+	ld.clear:SetHeight(20)
+	ld.clear:SetPoint("RIGHT", header, "RIGHT", DECLINE_R, 0)
+	ld.clear:Hide()
 
 	local empty = CreateFrame("Frame", nil, right)
 	empty:SetSize(380, 120)
@@ -261,119 +339,8 @@ function UI:BuildLeader(page)
 	empty.text:SetWidth(380)
 	empty.text:SetWordWrap(true)
 	ld.empty = empty
-	self:BuildListingForm(right)
 end
 
-----------------------------------------------------------------------
--- Formulário "Anunciar grupo": tudo pré-preenchido a partir da sua key
--- e do seu personagem, e tudo editável.
-----------------------------------------------------------------------
-local function NumberBox(parent, width)
-	local eb = CreateFrame("EditBox", nil, parent, "InputBoxTemplate")
-	eb:SetSize(width, 22)
-	eb:SetAutoFocus(false)
-	eb:SetNumeric(true)
-	eb:SetMaxLetters(5)
-	eb:SetJustifyH("CENTER")
-	eb:SetScript("OnEnterPressed", eb.ClearFocus)
-	eb:SetScript("OnEscapePressed", eb.ClearFocus)
-	-- Depois que o jogador mexe, a sugestão não sobrescreve mais.
-	eb:SetScript("OnTextChanged", function(self, userInput) if userInput then self.edited = true end end)
-	return eb
-end
-
-local function Label(parent, text, anchor)
-	local fs = W.Text(parent, "GameFontNormalSmall", "CENTER", 10)
-	fs:SetPoint("BOTTOM", anchor, "TOP", 0, 4)
-	fs:SetText(text)
-	return fs
-end
-
-function UI:BuildListingForm(parent)
-	local f = CreateFrame("Frame", nil, parent)
-	f:SetSize(400, 300)
-	f:SetPoint("CENTER", 0, 10)
-	f:Hide()
-	self.leaderUI.form = f
-	local o = KF.db.listing
-
-	f.art = f:CreateTexture(nil, "ARTWORK")
-	f.art:SetPoint("TOP")
-	f.art:SetSize(400, 96)
-	local shade = f:CreateTexture(nil, "ARTWORK", nil, 1)
-	shade:SetAllPoints(f.art)
-	W.Gradient(shade, "VERTICAL", 0, 0, 0, 0.9, 0, 0, 0, 0.1)
-	W.Border(f, 1, 0.82, 0, 0.25)
-
-	f.dungeon = W.Dropdown(f, 250, function()
-		local opts = {}
-		for _, m in ipairs(KF.maps or {}) do
-			if f.activities and f.activities[m.id] then opts[#opts + 1] = { text = m.name, value = m.id } end
-		end
-		return opts
-	end, function() return f.mapID end, function(v) f.mapID = v; f.userMap = true; UI:RefreshListingForm() end)
-	f.dungeon:SetPoint("BOTTOM", f.art, "BOTTOM", -24, 12)
-	f.key = W.Text(f, "GameFontHighlight", "LEFT", 18, "OUTLINE")
-	f.key:SetPoint("LEFT", f.dungeon, "RIGHT", 10, 0)
-
-	local y = -136
-	f.ilvl = NumberBox(f, 64); f.ilvl:SetPoint("TOP", -130, y)
-	Label(f, L.LIST_ILVL, f.ilvl)
-	f.rating = NumberBox(f, 72); f.rating:SetPoint("TOP", -30, y)
-	Label(f, L.LIST_RATING, f.rating)
-	local ps = {}
-	for i = 1, 4 do ps[#ps + 1] = { text = L.PS[i], value = i } end
-	f.style = W.Dropdown(f, 130, ps, function() return o.playstyle end, function(v) o.playstyle = v end)
-	f.style:SetPoint("TOP", 100, y + 2)
-	Label(f, L.LIST_STYLE, f.style)
-
-	y = y - 44
-	local checks = { { "autoAccept", L.LIST_AUTO }, { "private", L.LIST_PRIVATE }, { "crossFaction", L.LIST_CROSS } }
-	f.checks = {}
-	for i, def in ipairs(checks) do
-		local key = def[1]
-		local cb = W.Check(f, def[2], function() return o[key] end, function(v) o[key] = v end)
-		cb:SetPoint("TOPLEFT", 24 + (i - 1) * 126, y)
-		f.checks[i] = cb
-	end
-
-	f.list = W.Button(f, L.LIST_BUTTON, 200, function()
-		local act = f.activities and f.activities[f.mapID]
-		if not act then return end
-		local ok = KF:CreateListing({
-			activityID = act.activityID, groupID = act.groupID,
-			ilvl = tonumber(f.ilvl:GetText()) or 0, rating = tonumber(f.rating:GetText()) or 0,
-			playstyle = o.playstyle, autoAccept = o.autoAccept, private = o.private, crossFaction = o.crossFaction,
-		})
-		if not ok then ns.Print(L.LIST_FAILED) end
-	end)
-	f.list:SetHeight(30)
-	f.list:SetPoint("BOTTOM", 0, 14)
-end
-
-function UI:RefreshListingForm()
-	local f = self.leaderUI and self.leaderUI.form
-	if not f then return end
-	f.activities = KF:GetDungeonActivities()
-	local keyMap, keyLevel = KF:GetOwnedKeyListing()
-	if not f.userMap or not f.activities[f.mapID or 0] then
-		f.mapID = (keyMap and f.activities[keyMap]) and keyMap or nil
-		if not f.mapID then
-			for _, m in ipairs(KF.maps or {}) do if f.activities[m.id] then f.mapID = m.id break end end
-		end
-	end
-	local map = f.mapID and KF.mapByID and KF.mapByID[f.mapID]
-	UI:SetBannerArt(f.art, map, 400, 96)
-	f.dungeon:Sync()
-
-	local isKey = keyMap and f.mapID == keyMap and keyLevel
-	f.key:SetText(isKey and ("|cffffd100+" .. keyLevel .. "|r") or "")
-	if not f.ilvl.edited then f.ilvl:SetText(tostring(KF:SuggestedItemLevel())) end
-	if not f.rating.edited then f.rating:SetText(tostring(isKey and KF:SuggestedRating(keyLevel) or 0)) end
-	f.style:Sync()
-	for _, cb in ipairs(f.checks) do cb:Sync() end
-	f.list:SetEnabled(f.mapID ~= nil and f.activities[f.mapID] ~= nil and not (C_LFGList.HasActiveEntryInfo and C_LFGList.HasActiveEntryInfo()))
-end
 
 -- Monta as recomendações a partir da composição e dos candidatos.
 local function BuildTips(data)
@@ -474,11 +441,25 @@ function UI:RefreshLeader()
 	ld.insight2:SetText(n > 0 and L.LD_IN_AVG:format(W.ScoreText(math.floor(sum / n))) or "")
 	ld.insight3:SetText(data.refLevel and L.LD_IN_TIMED:format(timedKey, data.refLevel) or "")
 
+	-- Some com quem já saiu da disputa (cancelou, recusado, expirou...) se o
+	-- jogador limpou; quem está na fila, convidado ou entrou sempre aparece.
+	local ACTIVE = { applied = true, invited = true, inviteaccepted = true }
+	local shown, finished = {}, {}
+	for _, a in ipairs(data.applicants) do
+		if ACTIVE[a.status] then
+			shown[#shown + 1] = a
+		elseif not ld.hidden[a.id] then
+			shown[#shown + 1] = a
+			finished[#finished + 1] = a
+		end
+	end
+	ld.finished = finished
+	ld.clear:SetShown(#finished > 0)
+	data.applicants = shown
+
 	W.SetData(ld.list, data.applicants)
-	ld.form:SetShown(not data.entry)
 	if not data.entry then
-		ld.empty:Hide()
-		self:RefreshListingForm()
+		ld.empty.text:SetText(L.LD_NO_ENTRY); ld.empty:Show()
 	elseif #data.applicants == 0 then
 		ld.empty.text:SetText(L.LD_EMPTY); ld.empty:Show()
 	else

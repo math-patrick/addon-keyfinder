@@ -34,7 +34,7 @@ Localizador de grupos Mythic+ para quem joga key alta. WoW retail Midnight (12.1
 - Um card por dungeon, da mais fraca para a mais forte: best, pontos, próximo passo e quanto rating ele dá. **Procurar grupos** já filtra e busca.
 
 **Meu grupo** (quem monta o grupo)
-- **Anunciar grupo**: sem anúncio ativo, a aba mostra um formulário já preenchido com a dungeon da sua key, item level e rating mínimos sugeridos, estilo, auto-aceite, privado e cross-faction. Tudo editável; o título é gerado pelo jogo.
+- **Anúncio preenchido**: ao criar um grupo no Localizador da Blizzard, o Keyfinder preenche item level e rating mínimos a partir da sua key (e privado/cross-faction). O que você digitar fica. Dá pra desligar em *Opções › AddOns › Keyfinder*.
 - Banner da dungeon anunciada, sua key e a composição atual com os ícones de Bloodlust e battle res.
 - **Recomendações**: o que falta (roles, Bloodlust, battle res e quais classes trazem), que best procurar pra sua key e aviso quando não há rating mínimo.
 - **Candidatos**: quantos estão esperando por role, rating médio e quantos já timaram a sua key.

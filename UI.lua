@@ -150,7 +150,7 @@ function UI:Create()
 
 	f:SetScript("OnShow", function()
 		PlaySound(SOUNDKIT.IG_CHARACTER_INFO_OPEN)
-		KF:RefreshPlayer()
+		if KF.results then KF:Rescore() else KF:RefreshPlayer() end
 		UI:StartTicker()
 		UI:RefreshAll()
 	end)
@@ -405,8 +405,75 @@ function UI:AttachToGroupFinder()
 	else t:SetPoint("TOPRIGHT", PVEFrame, "TOPRIGHT", -28, -1) end
 	t:SetFrameLevel(PVEFrame:GetFrameLevel() + 20)
 	self.pveTitleButton = t
+	self:HookEntryCreation()
 
 	self:UpdateGroupFinderButton()
+end
+
+----------------------------------------------------------------------
+-- Preenche a janela "Anunciar grupo" do Localizador da Blizzard.
+-- Só mexe no que o jogo lê direto no clique de anunciar (texto das caixas
+-- e estado dos checkboxes), sem chamar funções da Blizzard, para não
+-- contaminar (taint) o botão de anunciar. Não sobrescreve o que o jogador
+-- já digitou e não roda em combate nem ao editar um anúncio existente.
+----------------------------------------------------------------------
+local function FillBox(req, value)
+	local eb = req and req.EditBox
+	if not (eb and value and value > 0) then return end
+	if strtrim(eb:GetText() or "") ~= "" then return end
+	if req.CheckButton and not req.CheckButton:GetChecked() then req.CheckButton:SetChecked(true) end
+	if eb.Enable then eb:Enable() end
+	eb:SetText(tostring(value))
+end
+
+function UI:AutofillEntryCreation(ec)
+	if not KF.db.autofill or InCombatLockdown() then return end
+	if C_LFGList.HasActiveEntryInfo and C_LFGList.HasActiveEntryInfo() then return end
+	if not ec:IsShown() then return end
+	KF:RefreshPlayer()
+
+	-- Rating só quando a dungeon escolhida é a da sua key.
+	local keyMap, keyLevel = KF:GetOwnedKeyListing()
+	local act = ec.selectedActivity and C_LFGList.GetActivityInfoTable(ec.selectedActivity)
+	if not (act and act.isMythicPlusActivity) then return end
+	local map = KF:ResolveMap(act, nil)
+	FillBox(ec.ItemLevel, KF:SuggestedItemLevel())
+	if map and keyMap and map.id == keyMap and keyLevel then
+		FillBox(ec.MythicPlusRating, KF:SuggestedRating(keyLevel))
+	end
+
+	local o = KF.db.listing
+	if ec.PrivateGroup and ec.PrivateGroup.CheckButton then ec.PrivateGroup.CheckButton:SetChecked(o.private and true or false) end
+	-- O checkbox da Blizzard é "Limitar à minha facção": marcado = NÃO é cross-faction.
+	if ec.CrossFactionGroup and ec.CrossFactionGroup.CheckButton and ec.CrossFactionGroup:IsShown() then
+		ec.CrossFactionGroup.CheckButton:SetChecked(not o.crossFaction)
+	end
+
+	-- Título e descrição: as caixas costumam ser protegidas (o jogo bloqueia
+	-- addons). Tenta uma vez; se o jogo recusar, não tenta mais na sessão.
+	local name = map and map.name or act.fullName
+	if map and keyMap and map.id == keyMap and keyLevel then
+		UI:TryFillText(ec.Name, "title", L.LIST_TITLE:format(keyLevel, name))
+		UI:TryFillText(ec.Description and (ec.Description.EditBox or ec.Description), "desc", L.LIST_DESC:format(keyLevel, name))
+	end
+end
+
+-- Escreve numa caixa de texto da Blizzard só se estiver vazia e só se o
+-- jogo deixar. Lembra quando a caixa é protegida pra não insistir.
+UI.textBlocked = {}
+function UI:TryFillText(eb, kind, text)
+	if self.textBlocked[kind] or not (eb and eb.SetText and eb.GetText) then return end
+	if strtrim(eb:GetText() or "") ~= "" then return end
+	local ok = pcall(eb.SetText, eb, text)
+	if not ok or eb:GetText() ~= text then self.textBlocked[kind] = true end
+end
+
+function UI:HookEntryCreation()
+	local ec = LFGListFrame and LFGListFrame.EntryCreation
+	if self.entryHooked or not ec then return end
+	self.entryHooked = true
+	-- Espera um frame: a Blizzard limpa e seleciona a atividade logo depois de mostrar.
+	ec:HookScript("OnShow", function(frame) C_Timer.After(0.05, function() UI:AutofillEntryCreation(frame) end) end)
 end
 
 function UI:UpdateGroupFinderButton()
@@ -490,6 +557,9 @@ function UI:RegisterOptions()
 		end)
 		Settings.CreateSlider(cat, s3, o3, L.O_BASE_TIP)
 
+		local s4 = Settings.RegisterAddOnSetting(cat, "KEYFINDER_AUTOFILL", "autofill", KF.db, Settings.VarType.Boolean, L.O_AUTOFILL, true)
+		Settings.CreateCheckbox(cat, s4, L.O_AUTOFILL_TIP)
+
 		Settings.RegisterAddOnCategory(cat)
 		self.optionsCategory = cat
 	end)
@@ -508,7 +578,7 @@ end
 -- montar o link certinho). Sem ele, monta o mesmo formato de link e
 -- mostra numa caixa para copiar.
 ----------------------------------------------------------------------
-local PA_ICON = "Interface\Icons\INV_Misc_Book_09"
+local PA_ICON = "Interface\\Icons\\INV_Misc_Book_09"
 local PA_SITE = "https://parseacademy.com/character/"
 local PA_REGIONS = { [1] = "us", [2] = "kr", [3] = "eu", [4] = "tw", [5] = "cn" }
 local ACCENTS = {
