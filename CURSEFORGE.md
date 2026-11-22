@@ -2,6 +2,8 @@
 
 Copy each field into the "Create project" form. The description is in `DESCRIPTION.md`.
 
+Packaging: in the CurseForge project, link this GitHub repository with automatic packaging on tags. Every push to main gets an alpha tag (vX.Y.Z-alpha.N) from the "Alpha Auto Tag" workflow, and CurseForge builds a file from each tag.
+
 ## Project name
 
 Keyfinder

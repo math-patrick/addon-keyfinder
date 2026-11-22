@@ -2,6 +2,8 @@ package-as: Keyfinder
 
 ignore:
   - .github
+  - .gitignore
   - .pkgmeta
+  - package.json
   - CURSEFORGE.md
   - DESCRIPTION.md

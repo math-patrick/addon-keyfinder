@@ -1,0 +1,11 @@
+{
+  "name": "addon-keyfinder",
+  "version": "0.7.0",
+  "description": "Keyfinder WoW Addon packaging automation",
+  "private": true,
+  "scripts": {
+    "bump:alpha": "npm version prepatch --preid=alpha && git push && git push --tags",
+    "tag:alpha": "git tag v$(node -p 'require(\"./package.json\").version') && git push origin v$(node -p 'require(\"./package.json\").version')"
+  },
+  "devDependencies": {}
+}
