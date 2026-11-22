@@ -1,0 +1,21 @@
+## Interface: 120100, 120105
+## Title: Keyfinder
+## Notes: Localizador de grupos Mythic+ com nota de match baseada nas suas runs (chance de aceite, ganho de rating, chance de timar), progresso por dungeon e watchlist com alertas.
+## Author: sabiá
+## Version: 0.6.0
+## SavedVariables: KeyfinderDB
+## OptionalDeps: ParseAcademy
+## IconTexture: Interface\Icons\inv_relics_hourglass
+## AddonCompartmentFunc: Keyfinder_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: Keyfinder_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: Keyfinder_OnAddonCompartmentLeave
+
+Locale.lua
+Core.lua
+Widgets.lua
+UISearch.lua
+UIWatch.lua
+UILeader.lua
+UIProgress.lua
+UI.lua
+Templates.xml

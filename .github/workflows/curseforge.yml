@@ -1,0 +1,48 @@
+# Publica o addon no CurseForge a cada push na main (inclui merges de PR).
+#
+# Configuração única no GitHub (Settings > Secrets and variables > Actions):
+#   - Secret   CF_API_KEY             -> token da API do CurseForge
+#                                        (https://legacy.curseforge.com/account/api-tokens)
+#   - Variable CURSEFORGE_PROJECT_ID  -> ID numérico do projeto no CurseForge
+#
+# Sem tag, o packager sobe uma build "alpha" com versão tirada do commit.
+# Para uma release estável, crie uma tag (ex.: v0.6.0) e dê push nela.
+name: Publish to CurseForge
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: curseforge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      CF_PROJECT_ID: ${{ vars.CURSEFORGE_PROJECT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # o packager usa o histórico/tags para montar a versão
+
+      - name: Check CurseForge settings
+        id: settings
+        run: |
+          if [ -z "$CF_API_KEY" ] || [ -z "$CF_PROJECT_ID" ]; then
+            echo "::warning::CF_API_KEY (secret) ou CURSEFORGE_PROJECT_ID (variable) não configurados; publicação pulada."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Package and upload
+        if: steps.settings.outputs.ready == 'true'
+        uses: BigWigsMods/packager@v2
+        with:
+          args: -p ${{ vars.CURSEFORGE_PROJECT_ID }}

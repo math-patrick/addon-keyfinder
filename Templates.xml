@@ -1,0 +1,29 @@
+<Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/ https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/AddOns/Blizzard_SharedXML/UI.xsd">
+
+	<Button name="KeyfinderGroupRowTemplate" mixin="KeyfinderGroupRowMixin" virtual="true">
+		<Size y="44"/>
+		<HighlightTexture file="Interface\QuestFrame\UI-QuestTitleHighlight" alphaMode="ADD">
+			<Color r="1" g="1" b="1" a="0.18"/>
+		</HighlightTexture>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+			<OnClick method="OnClick"/>
+			<OnDoubleClick method="OnDoubleClick"/>
+		</Scripts>
+	</Button>
+
+	<Frame name="KeyfinderRuleRowTemplate" mixin="KeyfinderRuleRowMixin" virtual="true">
+		<Size y="32"/>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+		</Scripts>
+	</Frame>
+
+	<Frame name="KeyfinderApplicantRowTemplate" mixin="KeyfinderApplicantRowMixin" virtual="true">
+		<Size y="44"/>
+		<Scripts>
+			<OnLoad method="OnLoad"/>
+		</Scripts>
+	</Frame>
+
+</Ui>

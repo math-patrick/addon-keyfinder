@@ -1,0 +1,8 @@
+<Bindings>
+	<Binding name="KEYFINDER_TOGGLE" header="KEYFINDER" category="ADDONS">
+		Keyfinder_Toggle()
+	</Binding>
+	<Binding name="KEYFINDER_REFRESH" category="ADDONS">
+		Keyfinder_Refresh()
+	</Binding>
+</Bindings>
